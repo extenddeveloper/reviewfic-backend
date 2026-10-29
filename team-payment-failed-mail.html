@@ -1,0 +1,360 @@
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reviewfic – Payment Failed / Incomplete</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap"
+    rel="stylesheet" />
+  <style type="text/css">
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap');
+
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100% !important;
+      min-width: 100%;
+      background-color: #f1f5f9;
+      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+    }
+
+    table,
+    td {
+      border-collapse: collapse;
+      mso-table-lspace: 0pt;
+      mso-table-rspace: 0pt;
+    }
+
+    img {
+      border: 0;
+      line-height: 100%;
+      outline: none;
+      text-decoration: none;
+      display: block;
+      -ms-interpolation-mode: bicubic;
+    }
+
+    h1,
+    .main-title,
+    .brand-title,
+    .summary-plan,
+    .summary-amount {
+      font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+    }
+
+    /* ── Mobile Responsive Styles ── */
+    @media only screen and (max-width: 600px) {
+      .outer-padding {
+        padding: 16px 10px 28px !important;
+      }
+
+      .main-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        border-radius: 12px !important;
+      }
+
+      .header-cell {
+        padding: 18px 20px 16px !important;
+      }
+
+      .content-padding {
+        padding: 20px 18px 20px !important;
+      }
+
+      .summary-cell {
+        padding: 16px 14px !important;
+      }
+
+      .details-container-cell {
+        padding: 14px 14px !important;
+      }
+
+      .footer-cell {
+        padding: 14px 18px !important;
+      }
+
+      .main-title {
+        font-size: 20px !important;
+        line-height: 1.3 !important;
+        margin: 12px 0 6px 0 !important;
+      }
+
+      .intro-text {
+        font-size: 13px !important;
+        line-height: 1.5 !important;
+      }
+
+      .summary-plan {
+        font-size: 18px !important;
+      }
+
+      .summary-amount {
+        font-size: 22px !important;
+      }
+
+      .table-label {
+        width: 40% !important;
+        font-size: 12px !important;
+        padding: 8px 0 !important;
+      }
+
+      .table-val {
+        font-size: 13px !important;
+        padding: 8px 0 !important;
+        word-break: break-word !important;
+      }
+
+      .brand-title {
+        font-size: 14px !important;
+      }
+    }
+  </style>
+</head>
+
+<body class="email-bg"
+  style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, Arial, sans-serif;">
+  <!-- Outer Container Table -->
+  <table border="0" cellpadding="0" cellspacing="0" width="100%" class="email-bg outer-padding"
+    style="margin-top: 20px; background-color: #f1f5f9; padding: 32px 14px 48px;">
+    <tr>
+      <td align="center">
+
+        <!-- Main Card Wrapper -->
+        <table border="0" cellpadding="0" cellspacing="0" width="580" class="main-card"
+          style="max-width: 580px; width: 100%; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #cbd5e1; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);">
+
+          <!-- Top Row: Gradient Header with Logos -->
+          <tr>
+            <td class="header-cell"
+              style="background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 55%, #3b82f6 100%); background-color: #2563eb; padding: 24px 32px 22px; border-top-left-radius: 16px; border-top-right-radius: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.15);">
+              <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                <tr>
+                  <!-- Left: Plugin Logo (32x32) + Name -->
+                  <td align="left" valign="middle">
+                    <table border="0" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td valign="middle" style="padding-right: 10px;">
+                          <img src="assets/Favicon.png" width="32" height="32"
+                            style="background-color: #ffffff; padding: 2px; border-radius: 7px; display: block; box-shadow: 0 2px 8px rgba(0,0,0,0.18);"
+                            alt="Reviewfic Logo" />
+                        </td>
+                        <td valign="middle" class="brand-title"
+                          style="font-family: 'Sora', 'DM Sans', Arial, Helvetica, sans-serif; font-size: 16px; font-weight: 700; color: #ffffff; letter-spacing: -0.2px; text-shadow: 0 1px 2px rgba(0,0,0,0.15);">
+                          Reviewfic
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+
+                  <!-- Right: Company Logo (32x32) + Name -->
+                  <td align="right" valign="middle">
+                    <table border="0" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td valign="middle" style="padding-right: 8px;">
+                          <img src="assets/Framefic.png" width="32" height="32"
+                            style="width: 32px; height: 32px; display: block; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);"
+                            alt="Framefic Logo" />
+                        </td>
+                        <td valign="middle" class="brand-title"
+                          style="font-family: 'Sora', 'DM Sans', Arial, Helvetica, sans-serif; font-size: 16px; font-weight: 700; color: #ffffff; letter-spacing: -0.2px; text-shadow: 0 1px 2px rgba(0,0,0,0.15);">
+                          Framefic
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Main Content Body -->
+          <tr>
+            <td class="card-body-cell content-padding" style="padding: 24px 32px 24px; background-color: #ffffff;">
+
+              <!-- Badge -->
+              <div>
+                <span
+                  style="background-color: #fef2f2; border: 1px solid #fecaca; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04); border-radius: 6px; padding: 5px 12px; font-size: 11px; font-weight: 700; color: #dc2626; letter-spacing: 0.5px; text-transform: uppercase; display: inline-block;">
+                  {badgeText}
+                </span>
+              </div>
+
+              <!-- Main Title -->
+              <h1 class="main-title dark-text-title"
+                style="font-family: 'Sora', 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 24px; font-weight: 800; color: #0f172a; margin: 14px 0 8px 0; line-height: 1.3; letter-spacing: -0.4px;">
+                {titleText}
+              </h1>
+
+              <!-- Intro Paragraph -->
+              <p class="intro-text dark-text-sub"
+                style="font-family: 'DM Sans', Arial, Helvetica, sans-serif; font-size: 14px; color: #475569; margin: 0 0 20px 0; line-height: 1.6;">
+                A payment attempt has failed or is incomplete for the <strong>Reviewfic</strong> plugin.
+                Transaction summary and error details are provided below:
+              </p>
+
+              <!-- Highlighted Summary Box -->
+              <table border="0" cellpadding="0" cellspacing="0" width="100%" class="dark-box"
+                style="background-color: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
+                <tr>
+                  <td align="center" class="summary-cell" style="padding: 20px 22px;">
+                    <span
+                      style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #dc2626; text-transform: uppercase; display: block; margin-bottom: 4px;">
+                      {summaryHeader}
+                    </span>
+                    <span class="summary-plan dark-box-title"
+                      style="font-family: 'Sora', 'DM Sans', Arial, Helvetica, sans-serif; font-size: 21px; font-weight: 800; color: #0f172a; display: block; margin-bottom: 6px; letter-spacing: -0.3px;">
+                      {plan}
+                    </span>
+                    <span class="summary-amount"
+                      style="font-family: 'Sora', 'DM Sans', Arial, Helvetica, sans-serif; font-size: 26px; font-weight: 800; color: #dc2626; letter-spacing: -0.5px;">
+                      {amount} <span
+                        style="font-size: 14px; font-weight: 600; color: #64748b; text-transform: uppercase;">{currency}</span>
+                    </span>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Metadata Details Table -->
+              <table border="0" cellpadding="0" cellspacing="0" width="100%" class="dark-box"
+                style="background-color: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 18px;">
+                <tr>
+                  <td class="details-container-cell" style="padding: 16px 20px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                      <tr>
+                        <td valign="top" class="table-label dark-label dark-row-border"
+                          style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; font-size: 13.5px; font-weight: 600; color: #475569; width: 38%;">
+                          Customer Name:</td>
+                        <td valign="top" class="table-val dark-val dark-row-border"
+                          style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; font-size: 14px; font-weight: 700; color: #0f172a;">
+                          {username}</td>
+                      </tr>
+                      <tr>
+                        <td valign="top" class="table-label dark-label dark-row-border"
+                          style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; font-size: 13.5px; font-weight: 600; color: #475569;">
+                          Customer Email:</td>
+                        <td valign="top" class="table-val dark-row-border"
+                          style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; font-size: 14px; font-weight: 700; color: #2563eb;">
+                          <a href="mailto:{email}" style="color: #2563eb; text-decoration: none;">{email}</a>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td valign="top" class="table-label dark-label dark-row-border"
+                          style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; font-size: 13.5px; font-weight: 600; color: #475569;">
+                          Framer Site Name:</td>
+                        <td valign="top" class="table-val dark-val dark-row-border"
+                          style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; font-size: 14px; font-weight: 700; color: #0f172a;">
+                          {framerSiteName}</td>
+                      </tr>
+                      <tr>
+                        <td valign="top" class="table-label dark-label dark-row-border"
+                          style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; font-size: 13.5px; font-weight: 600; color: #475569;">
+                          Framer Site URL:</td>
+                        <td valign="top" class="table-val dark-row-border"
+                          style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; font-size: 13.5px; font-weight: 600; color: #2563eb; word-break: break-all;">
+                          {framerSiteUrl}</td>
+                      </tr>
+                      <tr>
+                        <td valign="top" class="table-label dark-label dark-row-border"
+                          style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; font-size: 13.5px; font-weight: 600; color: #475569;">
+                          Framer Site ID:</td>
+                        <td valign="top" class="table-val dark-mono-val dark-row-border"
+                          style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px; font-family: monospace; color: #1e293b; word-break: break-all;">
+                          {siteId}</td>
+                      </tr>
+                      <tr>
+                        <td valign="top" class="table-label dark-label dark-row-border"
+                          style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; font-size: 13.5px; font-weight: 600; color: #475569;">
+                          Subscription ID:</td>
+                        <td valign="top" class="table-val dark-mono-val dark-row-border"
+                          style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; font-family: monospace; color: #334155; word-break: break-all;">
+                          {subscriptionId}</td>
+                      </tr>
+                      <tr>
+                        <td valign="top" class="table-label dark-label dark-row-border"
+                          style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; font-size: 13.5px; font-weight: 600; color: #475569;">
+                          Transaction / Invoice:</td>
+                        <td valign="top" class="table-val dark-mono-val dark-row-border"
+                          style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; font-family: monospace; color: #334155; word-break: break-all;">
+                          {paymentId}</td>
+                      </tr>
+                      <tr>
+                        <td valign="top" class="table-label dark-label dark-row-border"
+                          style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; font-size: 13.5px; font-weight: 600; color: #475569;">
+                          Failure Reason:</td>
+                        <td valign="top" class="table-val dark-row-border"
+                          style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; font-size: 13.5px; font-weight: 700; color: #dc2626; word-break: break-word;">
+                          {failureReason}</td>
+                      </tr>
+                      <tr>
+                        <td valign="top" class="table-label dark-label dark-row-border"
+                          style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; font-size: 13.5px; font-weight: 600; color: #475569;">
+                          Status / Attempts:</td>
+                        <td valign="top" class="table-val dark-val dark-row-border"
+                          style="padding: 9px 0; border-bottom: 1px solid #f1f5f9; font-size: 13.5px; font-weight: 600; color: #64748b;">
+                          {status}</td>
+                      </tr>
+                      <tr>
+                        <td valign="top" class="table-label dark-label"
+                          style="padding: 9px 0; font-size: 13.5px; font-weight: 600; color: #475569;">Timestamp:</td>
+                        <td valign="top" class="table-val dark-val"
+                          style="padding: 9px 0; font-size: 13.5px; color: #334155;">{date}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Bottom Note -->
+              <p class="dark-text-sub"
+                style="font-family: 'DM Sans', Arial, Helvetica, sans-serif; font-size: 12.5px; color: #64748b; margin: 16px 0 0 0; line-height: 1.5;">
+                This is an automated failure alert generated by the Framefic platform for the Reviewfic plugin.
+                Follow-up action may be required.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer Bar -->
+          <tr>
+            <td class="footer-cell dark-footer"
+              style="padding: 16px 32px; background-color: #f8fafc; border-top: 1px solid #e2e8f0;">
+              <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                <tr>
+                  <td align="left" style="font-size: 12px; color: #64748b;">
+                    Reviewfic &bull; <a href="https://framefic.com" target="_blank"
+                      style="color: #2563eb; text-decoration: none; font-weight: 600;">framefic.com</a>
+                  </td>
+                  <td align="right" style="font-size: 12px; color: #64748b;">
+                    &copy; {year} Framefic
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+        </table>
+
+        <!-- Outer Sub-Footer -->
+        <table border="0" cellpadding="0" cellspacing="0" width="580" class="main-card"
+          style="max-width: 580px; width: 100%; margin-top: 14px;">
+          <tr>
+            <td align="center" class="dark-subfooter" style="font-size: 11px; color: #94a3b8; padding-bottom:20px ;">
+              Notification sent to hello@framefic.com
+            </td>
+          </tr>
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</body>
+
+</html>
