@@ -182,8 +182,8 @@ export async function getGooglePlaceDetails(placeId, options = {}) {
         }
 
         const totalExpected = place.user_ratings_total || 0;
-        // Return cache if it has at least 10 reviews OR matches all total expected reviews
-        if (reviews && (reviews.length >= 10 || (totalExpected > 0 && reviews.length >= totalExpected))) {
+        // Return cache if it has at least 24 reviews OR matches all available reviews
+        if (reviews && (reviews.length >= 24 || (totalExpected > 0 && reviews.length >= totalExpected))) {
           return {
             place: {
               place_id: place.place_id,
@@ -204,57 +204,122 @@ export async function getGooglePlaceDetails(placeId, options = {}) {
     }
   }
 
-  // 2. Fetch live via SerpApi (Primary - multi-sort harvesting up to 24+ unique reviews with user avatars)
+  // 2. Fetch live via SerpApi (Primary - multi-sort & topic harvesting up to 24+ unique reviews with user avatars)
   const serpApiKey = process.env.SERPAPI_API_KEY;
   if (serpApiKey && serpApiKey.trim() !== '') {
     try {
-      const sorts = ['qualityScore', 'newestFirst', 'ratingHigh', 'ratingLow'];
+      // 2a. Initial qualityScore query to obtain place info, initial reviews, and topics
+      const initialRes = await axios
+        .get('https://serpapi.com/search.json', {
+          params: {
+            engine: 'google_maps_reviews',
+            place_id: cleanId,
+            api_key: serpApiKey,
+            hl: 'en',
+            sort_by: 'qualityScore',
+          },
+          timeout: 10000,
+        })
+        .catch((err) => {
+          console.warn('⚠️ SerpApi initial query error:', err.message);
+          return null;
+        });
 
-      const requests = sorts.map((s) =>
-        axios
-          .get('https://serpapi.com/search.json', {
-            params: {
-              engine: 'google_maps_reviews',
-              place_id: cleanId,
-              api_key: serpApiKey,
-              hl: 'en',
-              sort_by: s,
-            },
-            timeout: 10000,
-          })
-          .then((r) => r.data)
-          .catch((err) => {
-            console.warn(`⚠️ SerpApi sort=${s} error:`, err.message);
-            return null;
-          })
-      );
-
-      const results = await Promise.all(requests);
-      let placeInfo = {};
-      let maps_url = `https://maps.google.com/?cid=${cleanId}`;
+      const initialData = initialRes?.data;
+      let placeInfo = initialData?.place_info || {};
+      let maps_url = initialData?.google_maps_reviews_url || `https://maps.google.com/?cid=${cleanId}`;
       const seen = new Set();
       const rawReviews = [];
-      let nextPageToken = null;
 
-      for (const data of results) {
-        if (!data) continue;
-        if (!placeInfo.title && data.place_info) placeInfo = data.place_info;
-        if (data.google_maps_reviews_url) maps_url = data.google_maps_reviews_url;
-        if (!nextPageToken && data.serpapi_pagination?.next_page_token) {
-          nextPageToken = data.serpapi_pagination.next_page_token;
+      const addRawReview = (r) => {
+        if (!r) return;
+        const uniqueId = r.review_id || `${r.user?.name || ''}_${r.snippet || r.date || ''}`;
+        if (!seen.has(uniqueId)) {
+          seen.add(uniqueId);
+          rawReviews.push(r);
         }
+      };
 
-        for (const r of data.reviews || []) {
-          const uniqueId =
-            r.review_id || `${r.user?.name || ''}_${r.snippet || r.date || ''}`;
-          if (!seen.has(uniqueId)) {
-            seen.add(uniqueId);
-            rawReviews.push(r);
-          }
+      for (const r of initialData?.reviews || []) {
+        addRawReview(r);
+      }
+
+      // 2b. Secondary parallel harvest: fetch remaining sorts and topics to ensure 24+ reviews
+      const harvestRequests = [];
+
+      // Add remaining sorts: newestFirst, ratingHigh, ratingLow
+      const otherSorts = ['newestFirst', 'ratingHigh', 'ratingLow'];
+      for (const s of otherSorts) {
+        harvestRequests.push(
+          axios
+            .get('https://serpapi.com/search.json', {
+              params: {
+                engine: 'google_maps_reviews',
+                place_id: cleanId,
+                api_key: serpApiKey,
+                hl: 'en',
+                sort_by: s,
+              },
+              timeout: 10000,
+            })
+            .then((res) => res.data?.reviews || [])
+            .catch(() => [])
+        );
+      }
+
+      // Add top topics (up to 6 topics)
+      const topics = Array.isArray(initialData?.topics) ? initialData.topics.slice(0, 6) : [];
+      for (const t of topics) {
+        if (t.id) {
+          harvestRequests.push(
+            axios
+              .get('https://serpapi.com/search.json', {
+                params: {
+                  engine: 'google_maps_reviews',
+                  place_id: cleanId,
+                  api_key: serpApiKey,
+                  hl: 'en',
+                  topic_id: t.id,
+                },
+                timeout: 10000,
+              })
+              .then((res) => res.data?.reviews || [])
+              .catch(() => [])
+          );
         }
       }
 
-      // If next page token exists and we need more reviews towards the 24 cap, fetch page 2
+      // If business has few topics, add common query terms to extract reviews
+      if (topics.length <= 1) {
+        const fallbacks = ['service', 'team', 'support', 'best', 'good'];
+        for (const kw of fallbacks) {
+          harvestRequests.push(
+            axios
+              .get('https://serpapi.com/search.json', {
+                params: {
+                  engine: 'google_maps_reviews',
+                  place_id: cleanId,
+                  api_key: serpApiKey,
+                  hl: 'en',
+                  query: kw,
+                },
+                timeout: 10000,
+              })
+              .then((res) => res.data?.reviews || [])
+              .catch(() => [])
+          );
+        }
+      }
+
+      const harvestResults = await Promise.all(harvestRequests);
+      for (const batch of harvestResults) {
+        for (const r of batch) {
+          addRawReview(r);
+        }
+      }
+
+      // Check for pagination next_page_token if available and still under 24
+      const nextPageToken = initialData?.serpapi_pagination?.next_page_token;
       if (nextPageToken && rawReviews.length < 24) {
         try {
           const p2Res = await axios.get('https://serpapi.com/search.json', {
@@ -268,12 +333,7 @@ export async function getGooglePlaceDetails(placeId, options = {}) {
             timeout: 10000,
           });
           for (const r of p2Res.data?.reviews || []) {
-            const uniqueId =
-              r.review_id || `${r.user?.name || ''}_${r.snippet || r.date || ''}`;
-            if (!seen.has(uniqueId)) {
-              seen.add(uniqueId);
-              rawReviews.push(r);
-            }
+            addRawReview(r);
           }
         } catch (e) {
           // ignore page 2 error
@@ -286,7 +346,7 @@ export async function getGooglePlaceDetails(placeId, options = {}) {
         const rating = parseFloat(placeInfo.rating || 5);
         const user_ratings_total = placeInfo.reviews || rawReviews.length;
 
-        // Prioritize written reviews with text snippets first, followed by rated reviews
+        // Prioritize written reviews with text snippets first, followed by ratings
         rawReviews.sort((a, b) => {
           const aHasText = Boolean(a.snippet || a.extracted_snippet?.original);
           const bHasText = Boolean(b.snippet || b.extracted_snippet?.original);
@@ -295,7 +355,7 @@ export async function getGooglePlaceDetails(placeId, options = {}) {
           return 0;
         });
 
-        // Limit to max 24 reviews for the plugin
+        // Harvest up to 24 reviews (matching plugin max option)
         const reviews = rawReviews.slice(0, 24).map((r) => {
           const publishedDate = r.iso_date || '';
           const timeStamp = r.iso_date
