@@ -3,7 +3,7 @@ import { query } from '../db.js';
 
 /**
  * Search Google Places predictions
- * Matches format used by RevuKit & Vanssay
+ * Supports SerpApi (primary), Google Places Autocomplete API, and local database cache
  */
 export async function searchGooglePlaces(input) {
   const cleanInput = (input || '').trim();
@@ -11,7 +11,7 @@ export async function searchGooglePlaces(input) {
     return { results: [], predictions: [] };
   }
 
-  // 1. Check local search cache first (only return if it has actual predictions)
+  // 1. Check local search cache first (24h TTL)
   try {
     const cached = await query(
       `SELECT results, updated_at FROM search_cache WHERE search_query = ? AND updated_at > NOW() - INTERVAL 24 HOUR LIMIT 1`,
@@ -27,9 +27,57 @@ export async function searchGooglePlaces(input) {
     console.warn('⚠️ Search cache read warning:', err.message);
   }
 
-  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+  // 2. SerpApi Google Maps search (Primary - provides full places with Place ID, rating, reviews)
+  const serpApiKey = process.env.SERPAPI_API_KEY;
+  if (serpApiKey && serpApiKey.trim() !== '') {
+    try {
+      const url = `https://serpapi.com/search.json?engine=google_maps&q=${encodeURIComponent(
+        cleanInput
+      )}&api_key=${serpApiKey}&hl=en`;
 
-  // 2. If Google API Key is provided, call Google Places Autocomplete API
+      const res = await axios.get(url, { timeout: 10000 });
+      let items = [];
+      if (Array.isArray(res.data?.local_results) && res.data.local_results.length > 0) {
+        items = res.data.local_results;
+      } else if (res.data?.place_results) {
+        items = [res.data.place_results];
+      }
+
+      if (items.length > 0) {
+        const predictions = items.map((p) => ({
+          place_id: p.place_id || p.data_id || `place-${cleanInput.toLowerCase()}`,
+          description: `${p.title}${p.address ? `, ${p.address}` : ''}`,
+          structured_formatting: {
+            main_text: p.title,
+            secondary_text: p.address || '',
+          },
+        }));
+
+        const results = items.map((p) => ({
+          placeId: p.place_id || p.data_id || `place-${cleanInput.toLowerCase()}`,
+          name: p.title,
+          address: p.address || '',
+          rating: parseFloat(p.rating || 0),
+          totalCount: p.reviews || 0,
+        }));
+
+        const payload = { predictions, results };
+
+        // Cache in MySQL search_cache
+        await query(
+          `INSERT INTO search_cache (search_query, results) VALUES (?, ?) ON DUPLICATE KEY UPDATE results = VALUES(results), updated_at = NOW()`,
+          [cleanInput.toLowerCase(), JSON.stringify(payload)]
+        ).catch(() => {});
+
+        return payload;
+      }
+    } catch (err) {
+      console.warn('⚠️ SerpApi search warning:', err.message);
+    }
+  }
+
+  // 3. Fallback: Google Places Autocomplete API
+  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
   if (apiKey && apiKey.trim() !== '' && !apiKey.includes('placeholder')) {
     try {
       const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
@@ -55,7 +103,6 @@ export async function searchGooglePlaces(input) {
 
         const payload = { predictions, results };
 
-        // Save valid results to search cache
         await query(
           `INSERT INTO search_cache (search_query, results) VALUES (?, ?) ON DUPLICATE KEY UPDATE results = VALUES(results), updated_at = NOW()`,
           [cleanInput.toLowerCase(), JSON.stringify(payload)]
@@ -68,7 +115,7 @@ export async function searchGooglePlaces(input) {
     }
   }
 
-  // 3. Fallback: Search from local MySQL database cache (e.g. seeded Themefic and previously saved places)
+  // 4. Fallback: Search from local MySQL database cache
   try {
     const rows = await query(
       `SELECT place_id, name, formatted_address, rating, user_ratings_total 
@@ -107,6 +154,7 @@ export async function searchGooglePlaces(input) {
 
 /**
  * Get Google Place Details and Reviews with caching
+ * Supports SerpApi (primary), Google Places Details API, and MySQL cache
  */
 export async function getGooglePlaceDetails(placeId, options = {}) {
   const { forceRefresh = false } = options;
@@ -133,28 +181,109 @@ export async function getGooglePlaceDetails(placeId, options = {}) {
           reviews = [];
         }
 
-        return {
-          place: {
-            place_id: place.place_id,
-            name: place.name,
-            formatted_address: place.formatted_address,
-            rating: parseFloat(place.rating || 0),
-            user_ratings_total: place.user_ratings_total || 0,
-            maps_url: place.maps_url,
-            reviews,
-          },
-          fromCache: true,
-          cachedAt: place.updated_at,
-        };
+        // Only return from cache if it has reviews
+        if (reviews && reviews.length > 0) {
+          return {
+            place: {
+              place_id: place.place_id,
+              name: place.name,
+              formatted_address: place.formatted_address,
+              rating: parseFloat(place.rating || 0),
+              user_ratings_total: place.user_ratings_total || 0,
+              maps_url: place.maps_url,
+              reviews,
+            },
+            fromCache: true,
+            cachedAt: place.updated_at,
+          };
+        }
       }
     } catch (err) {
       console.warn('⚠️ Cache lookup warning:', err.message);
     }
   }
 
-  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+  // 2. Fetch live via SerpApi (Primary - provides 10-20+ full Google reviews with user avatars and dates)
+  const serpApiKey = process.env.SERPAPI_API_KEY;
+  if (serpApiKey && serpApiKey.trim() !== '') {
+    try {
+      const url = `https://serpapi.com/search.json?engine=google_maps_reviews&place_id=${encodeURIComponent(
+        cleanId
+      )}&api_key=${serpApiKey}&hl=en`;
 
-  // 2. Fetch live from Google Places Details API
+      const res = await axios.get(url, { timeout: 12000 });
+      if (res.data) {
+        const placeInfo = res.data.place_info || {};
+        const name = placeInfo.title || res.data.title || 'Business';
+        const formatted_address = placeInfo.address || res.data.address || '';
+        const rating = parseFloat(placeInfo.rating || res.data.rating || 5);
+        const user_ratings_total = placeInfo.reviews || res.data.reviews_count || (res.data.reviews ? res.data.reviews.length : 0);
+        const maps_url = res.data.google_maps_reviews_url || `https://maps.google.com/?cid=${cleanId}`;
+
+        const reviews = (res.data.reviews || []).map((r) => {
+          const publishedDate = r.iso_date || '';
+          const timeStamp = r.iso_date
+            ? Math.floor(new Date(r.iso_date).getTime() / 1000)
+            : Math.floor(Date.now() / 1000);
+
+          return {
+            author_name: r.user?.name || 'Google User',
+            author_url: r.user?.link || '',
+            profile_photo_url: r.user?.thumbnail || '',
+            rating: Number(r.rating || 5),
+            text: r.snippet || r.extracted_snippet?.original || '',
+            language: 'en',
+            time: timeStamp,
+            published_at_date: publishedDate,
+            relative_time_description: r.date || '',
+            review_url: r.link || '',
+          };
+        });
+
+        // Upsert into google_places_cache
+        await query(
+          `INSERT INTO google_places_cache (place_id, name, formatted_address, rating, user_ratings_total, maps_url, reviews)
+           VALUES (?, ?, ?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE
+             name = VALUES(name),
+             formatted_address = VALUES(formatted_address),
+             rating = VALUES(rating),
+             user_ratings_total = VALUES(user_ratings_total),
+             maps_url = VALUES(maps_url),
+             reviews = VALUES(reviews),
+             updated_at = NOW()`,
+          [
+            cleanId,
+            name,
+            formatted_address,
+            rating,
+            user_ratings_total,
+            maps_url,
+            JSON.stringify(reviews),
+          ]
+        );
+
+        return {
+          place: {
+            place_id: cleanId,
+            name,
+            formatted_address,
+            rating,
+            user_ratings_total,
+            maps_url,
+            reviews,
+          },
+          fromCache: false,
+          provider: 'serpapi',
+        };
+      }
+    } catch (err) {
+      console.warn('⚠️ SerpApi reviews details warning:', err.message);
+    }
+  }
+
+  // 3. Fallback: Google Places Details API
+  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
   if (apiKey && apiKey.trim() !== '' && !apiKey.includes('placeholder')) {
     try {
       const fields = [
@@ -188,7 +317,6 @@ export async function getGooglePlaceDetails(placeId, options = {}) {
           review_url: '',
         }));
 
-        // Upsert into google_places_cache
         await query(
           `INSERT INTO google_places_cache (place_id, name, formatted_address, rating, user_ratings_total, maps_url, reviews)
            VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -222,6 +350,7 @@ export async function getGooglePlaceDetails(placeId, options = {}) {
             reviews,
           },
           fromCache: false,
+          provider: 'google_places',
         };
       }
     } catch (err) {
@@ -229,7 +358,7 @@ export async function getGooglePlaceDetails(placeId, options = {}) {
     }
   }
 
-  // 3. Fallback: Check if place exists in database even if expired
+  // 4. Fallback: Check if place exists in database even if expired
   const fallbackRows = await query(
     `SELECT * FROM google_places_cache WHERE place_id = ? LIMIT 1`,
     [cleanId]
