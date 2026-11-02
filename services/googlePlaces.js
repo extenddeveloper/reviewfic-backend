@@ -3,7 +3,7 @@ import { query } from '../db.js';
 
 /**
  * Search Google Places predictions
- * Supports SerpApi (primary), Google Places Autocomplete API, and local database cache
+ * Powered by SerpApi (Google Maps Engine) with local database search cache
  */
 export async function searchGooglePlaces(input) {
   const cleanInput = (input || '').trim();
@@ -76,46 +76,7 @@ export async function searchGooglePlaces(input) {
     }
   }
 
-  // 3. Fallback: Google Places Autocomplete API
-  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
-  if (apiKey && apiKey.trim() !== '' && !apiKey.includes('placeholder')) {
-    try {
-      const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
-        cleanInput
-      )}&types=establishment&key=${apiKey}`;
-
-      const res = await axios.get(url, { timeout: 8000 });
-      if (res.data && Array.isArray(res.data.predictions) && res.data.predictions.length > 0) {
-        const predictions = res.data.predictions.map((p) => ({
-          place_id: p.place_id,
-          description: p.description,
-          structured_formatting: {
-            main_text: p.structured_formatting?.main_text || p.description,
-            secondary_text: p.structured_formatting?.secondary_text || '',
-          },
-        }));
-
-        const results = predictions.map((p) => ({
-          placeId: p.place_id,
-          name: p.structured_formatting.main_text,
-          address: p.structured_formatting.secondary_text,
-        }));
-
-        const payload = { predictions, results };
-
-        await query(
-          `INSERT INTO search_cache (search_query, results) VALUES (?, ?) ON DUPLICATE KEY UPDATE results = VALUES(results), updated_at = NOW()`,
-          [cleanInput.toLowerCase(), JSON.stringify(payload)]
-        ).catch(() => {});
-
-        return payload;
-      }
-    } catch (err) {
-      console.warn('⚠️ Google Autocomplete API notice:', err.message);
-    }
-  }
-
-  // 4. Fallback: Search from local MySQL database cache
+  // 3. Fallback: Search from local MySQL database cache
   try {
     const rows = await query(
       `SELECT place_id, name, formatted_address, rating, user_ratings_total 
@@ -154,7 +115,7 @@ export async function searchGooglePlaces(input) {
 
 /**
  * Get Google Place Details and Reviews with caching
- * Supports SerpApi (primary), Google Places Details API, and MySQL cache
+ * Powered by SerpApi (multi-sort & topic exploration) with MySQL cache
  */
 export async function getGooglePlaceDetails(placeId, options = {}) {
   const { forceRefresh = false } = options;
@@ -397,7 +358,9 @@ export async function getGooglePlaceDetails(placeId, options = {}) {
             maps_url,
             JSON.stringify(reviews),
           ]
-        );
+        ).catch((dbErr) => {
+          console.warn('⚠️ Cache save warning (MySQL unreachable):', dbErr.message);
+        });
 
         return {
           place: {
@@ -418,87 +381,16 @@ export async function getGooglePlaceDetails(placeId, options = {}) {
     }
   }
 
-  // 3. Fallback: Google Places Details API
-  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
-  if (apiKey && apiKey.trim() !== '' && !apiKey.includes('placeholder')) {
-    try {
-      const fields = [
-        'place_id',
-        'name',
-        'formatted_address',
-        'rating',
-        'user_ratings_total',
-        'url',
-        'reviews',
-      ].join(',');
-
-      const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(
-        cleanId
-      )}&fields=${fields}&key=${apiKey}`;
-
-      const res = await axios.get(url, { timeout: 10000 });
-      if (res.data && res.data.result) {
-        const result = res.data.result;
-
-        const reviews = (result.reviews || []).map((r) => ({
-          author_name: r.author_name || 'Google User',
-          author_url: r.author_url || '',
-          profile_photo_url: r.profile_photo_url || '',
-          rating: r.rating || 5,
-          text: r.text || '',
-          language: r.language || 'en',
-          time: r.time || Math.floor(Date.now() / 1000),
-          published_at_date: new Date((r.time || 0) * 1000).toISOString(),
-          relative_time_description: r.relative_time_description || '',
-          review_url: '',
-        }));
-
-        await query(
-          `INSERT INTO google_places_cache (place_id, name, formatted_address, rating, user_ratings_total, maps_url, reviews)
-           VALUES (?, ?, ?, ?, ?, ?, ?)
-           ON DUPLICATE KEY UPDATE
-             name = VALUES(name),
-             formatted_address = VALUES(formatted_address),
-             rating = VALUES(rating),
-             user_ratings_total = VALUES(user_ratings_total),
-             maps_url = VALUES(maps_url),
-             reviews = VALUES(reviews),
-             updated_at = NOW()`,
-          [
-            cleanId,
-            result.name || 'Business',
-            result.formatted_address || '',
-            result.rating || 0,
-            result.user_ratings_total || 0,
-            result.url || '',
-            JSON.stringify(reviews),
-          ]
-        );
-
-        return {
-          place: {
-            place_id: cleanId,
-            name: result.name,
-            formatted_address: result.formatted_address,
-            rating: result.rating || 0,
-            user_ratings_total: result.user_ratings_total || 0,
-            maps_url: result.url,
-            reviews,
-          },
-          fromCache: false,
-          provider: 'google_places',
-        };
-      }
-    } catch (err) {
-      console.warn('⚠️ Google Details API error:', err.message);
-    }
+  // 3. Fallback: Check if place exists in database even if expired
+  let fallbackRows = [];
+  try {
+    fallbackRows = await query(
+      `SELECT * FROM google_places_cache WHERE place_id = ? LIMIT 1`,
+      [cleanId]
+    );
+  } catch (err) {
+    console.warn('⚠️ Fallback cache query notice:', err.message);
   }
-
-  // 4. Fallback: Check if place exists in database even if expired
-  const fallbackRows = await query(
-    `SELECT * FROM google_places_cache WHERE place_id = ? LIMIT 1`,
-    [cleanId]
-  );
 
   if (fallbackRows.length > 0) {
     const place = fallbackRows[0];

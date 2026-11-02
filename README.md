@@ -32,7 +32,6 @@ Dedicated review retrieval, caching, and synchronization backend for **Reviewfic
    DB_PASSWORD=
 
    # Optional: Add your Google Places API Key for live global searches
-   GOOGLE_PLACES_API_KEY=
    ```
 
 3. **Start backend:**
