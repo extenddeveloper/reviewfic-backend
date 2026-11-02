@@ -7,7 +7,7 @@ import { query } from '../db.js';
  */
 export async function searchGooglePlaces(input) {
   const cleanInput = (input || '').trim();
-  if (!cleanInput) {
+  if (!cleanInput || cleanInput.length < 3) {
     return { results: [], predictions: [] };
   }
 

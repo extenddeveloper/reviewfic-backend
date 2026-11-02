@@ -6367,8 +6367,8 @@ app.post('/subscription/upgrade', handleChangePlan);
 // 1. Google Places Search / Autocomplete
 app.get(['/api/v1/places/predictions', '/api/v1/places/search', '/api/places/predictions'], async (req, res) => {
   try {
-    const searchInput = req.query.input || req.query.q || '';
-    if (!searchInput.trim()) {
+    const searchInput = (req.query.input || req.query.q || '').trim();
+    if (!searchInput || searchInput.length < 3) {
       return res.json({ predictions: [], results: [] });
     }
     const data = await searchGooglePlaces(searchInput);
