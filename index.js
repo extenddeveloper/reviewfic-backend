@@ -597,9 +597,32 @@ async function isEventForCurrentApp(event) {
 
   // 4. Payment intent lookup
   if (obj.object === 'payment_intent') {
-    if (obj.description && obj.description.toLowerCase().includes('reviewfic')) {
+    const desc = (obj.description || '').toLowerCase();
+    if (desc && (desc.includes('reviewfic') || desc.includes('review-fic'))) {
       return { match: true, reason: 'description_matched' };
     }
+
+    const piInvoiceId = obj.invoice || obj.payment_details?.order_reference;
+    if (
+      obj.description === 'Subscription update' ||
+      obj.description === 'Subscription creation' ||
+      (piInvoiceId && typeof piInvoiceId === 'string' && piInvoiceId.startsWith('in_'))
+    ) {
+      if (piInvoiceId) {
+        try {
+          const inv = await stripe.invoices.retrieve(piInvoiceId);
+          const invPrices = extractEventPriceIds({ data: { object: inv } });
+          const invSubId = getSubscriptionIdFromObject(inv);
+          const hasMatchPrice = invPrices.some(id => allowedPriceIds.includes(id));
+          if (hasMatchPrice || (invSubId && (inv.parent?.subscription_details?.metadata?.framer_site_id || inv.metadata?.framer_site_id || inv.parent?.subscription_details?.metadata?.app === 'reviewfic' || inv.metadata?.app === 'reviewfic'))) {
+            return { match: false, reason: 'subscription_invoice_payment_intent_handled_by_invoice_paid' };
+          }
+        } catch (err) {
+          // ignore lookup error
+        }
+      }
+    }
+
     try {
       const [rows] = await db.query(
         'SELECT id FROM payments WHERE payment_intent_id = ? LIMIT 1',
@@ -618,6 +641,23 @@ async function isEventForCurrentApp(event) {
   return { match: false, reason: 'no_reviewfic_identifiers' };
 }
 
+const UNHANDLED_INFORMATIONAL_EVENTS = new Set([
+  'balance.available',
+  'payout.paid',
+  'payout.updated',
+  'payout.created',
+  'payout.failed',
+  'payment_intent.created',
+  'charge.succeeded',
+  'charge.failed',
+  'charge.updated',
+  'customer.created',
+  'customer.updated',
+  'invoice.created',
+  'invoice.updated',
+  'invoice.finalized',
+]);
+
 app.post(['/api/webhook', '/api/stripe/webhook'], express.raw({ type: 'application/json' }), async (req, res) => {
   const sig = req.headers['stripe-signature'];
   let event;
@@ -629,9 +669,25 @@ app.post(['/api/webhook', '/api/stripe/webhook'], express.raw({ type: 'applicati
     return res.status(400).json({ error: `Webhook Error: ${err.message}` });
   }
 
+  // ── Filter benign informational events that require no action ──
+  if (UNHANDLED_INFORMATIONAL_EVENTS.has(event.type)) {
+    return res.json({ received: true });
+  }
+
   // ── Filter events belonging to other applications ──
-  const appCheck = await isEventForCurrentApp(event);
+  let appCheck;
+  try {
+    appCheck = await isEventForCurrentApp(event);
+  } catch (checkErr) {
+    console.error(`⚠️ Error checking application for event ${event.type} (${event.id}):`, checkErr);
+    return res.json({ received: true });
+  }
+
   if (!appCheck.match) {
+    if (appCheck.reason === 'subscription_invoice_payment_intent_handled_by_invoice_paid') {
+      console.log(`ℹ️ Skipping Stripe event ${event.type} (${event.id}): Subscription invoice payment intent is handled by invoice.paid.`);
+      return res.json({ received: true });
+    }
     const details = appCheck.foundPrices && appCheck.foundPrices.length > 0
       ? `price ID(s): ${appCheck.foundPrices.join(', ')}`
       : `reason: ${appCheck.reason}`;
@@ -1343,7 +1399,8 @@ app.post(['/api/webhook', '/api/stripe/webhook'], express.raw({ type: 'applicati
         const paymentIntent = event.data.object;
         const siteId = paymentIntent.metadata?.framer_site_id || null;
         const priceId = paymentIntent.metadata?.price_id || null;
-        const isReviewficDesc = paymentIntent.description && (paymentIntent.description.toLowerCase().includes('reviewfic') || description.toLowerCase().includes('chat bubbles') || paymentIntent.description.toLowerCase().includes('reviewfic') || description.toLowerCase().includes('chat bubbles'));
+        const desc = (paymentIntent.description || '').toLowerCase();
+        const isReviewficDesc = desc && (desc.includes('reviewfic') || desc.includes('review-fic'));
 
         // Verify if payment intent belongs to Reviewfic
         if (!siteId && !isReviewficDesc && (!priceId || !allowedPriceIds.includes(priceId))) {
